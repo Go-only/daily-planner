@@ -2,7 +2,7 @@
   "name": "Daily Planner",
   "short_name": "Planner",
   "description": "Ежедневный трекер задач и привычек",
-  "start_url": "/",
+  "start_url": "/daily-planner/"
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#6366f1",

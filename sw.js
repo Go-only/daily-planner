@@ -1,13 +1,13 @@
 const CACHE_NAME = 'planner-v1';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/db.js',
-  '/stats.js',
-  '/manifest.json',
-];
+const ASSETS = [                                                                                                                                                                                              
+    '/daily-planner/',
+    '/daily-planner/index.html',                                                                                                                                                                                
+    '/daily-planner/style.css',                         
+    '/daily-planner/app.js',                                                                                                                                                                                    
+    '/daily-planner/db.js',                             
+    '/daily-planner/stats.js',                                                                                                                                                                                  
+    '/daily-planner/manifest.json',
+  ]; 
 
 self.addEventListener('install', (e) => {
   e.waitUntil(

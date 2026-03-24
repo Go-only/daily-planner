@@ -1,0 +1,491 @@
+/* === Базовые стили === */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface2: #334155;
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --text: #f1f5f9;
+  --text-dim: #94a3b8;
+  --radius: 12px;
+}
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  overflow-x: hidden;
+}
+
+/* === Лейаут === */
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.screen {
+  flex: 1;
+  padding: 16px;
+  padding-bottom: 80px;
+  display: none;
+}
+
+.screen.active {
+  display: block;
+}
+
+/* === Навигация по дате === */
+.date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 0 16px;
+}
+
+.date-nav button {
+  background: var(--surface);
+  border: none;
+  color: var(--text);
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.date-nav button:active {
+  background: var(--surface2);
+}
+
+.date-nav .date-text {
+  font-size: 18px;
+  font-weight: 600;
+  min-width: 180px;
+  text-align: center;
+}
+
+.date-nav .today-label {
+  color: var(--accent-light);
+  font-size: 12px;
+  display: block;
+}
+
+/* === Список задач === */
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-item {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.task-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--red);
+  transition: background 0.3s;
+}
+
+.task-item[data-percent="100"]::before { background: var(--green); }
+.task-item.partial::before { background: var(--yellow); }
+
+.task-checkbox {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 2px solid var(--surface2);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.task-checkbox.checked {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.task-checkbox.checked::after {
+  content: '';
+  width: 8px;
+  height: 14px;
+  border: solid white;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.task-text {
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.task-percent-input {
+  width: 52px;
+  background: var(--surface2);
+  border: none;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 8px;
+  -moz-appearance: textfield;
+}
+
+.task-percent-input::-webkit-inner-spin-button,
+.task-percent-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.task-percent-input:focus {
+  outline: 2px solid var(--accent);
+}
+
+.task-percent-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* === Прогресс-бар === */
+.day-progress {
+  margin-top: 20px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.day-progress .label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.day-progress .label span:last-child {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.progress-bar {
+  height: 10px;
+  background: var(--surface2);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.progress-bar .fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+/* === Добавление задачи === */
+.add-task {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.add-task input {
+  flex: 1;
+  background: var(--surface);
+  border: 2px solid transparent;
+  color: var(--text);
+  font-size: 15px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  outline: none;
+}
+
+.add-task input::placeholder {
+  color: var(--text-dim);
+}
+
+.add-task input:focus {
+  border-color: var(--accent);
+}
+
+.add-task button {
+  background: var(--accent);
+  border: none;
+  color: white;
+  font-size: 24px;
+  width: 48px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-task button:active {
+  background: var(--accent-light);
+}
+
+/* === Пустое состояние === */
+.empty-state {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-dim);
+}
+
+.empty-state .icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.empty-state p {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* === Нижняя навигация === */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--surface2);
+  display: flex;
+  max-width: 480px;
+  margin: 0 auto;
+  z-index: 100;
+}
+
+.bottom-nav button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 10px 0 max(10px, env(safe-area-inset-bottom));
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.2s;
+}
+
+.bottom-nav button.active {
+  color: var(--accent-light);
+}
+
+.bottom-nav button .nav-icon {
+  font-size: 22px;
+}
+
+/* === Статистика === */
+.stats-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.stats-tabs button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stats-tabs button.active {
+  background: var(--accent);
+  color: white;
+}
+
+.stats-summary {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.stats-summary .big-number {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.stats-summary .big-label {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Столбчатый график */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  height: 120px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px 12px 8px;
+  margin-bottom: 16px;
+}
+
+.bar-chart .bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.bar-chart .bar {
+  width: 100%;
+  max-width: 36px;
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  transition: height 0.4s ease;
+}
+
+.bar-chart .bar-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Календарная сетка */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.calendar-grid .cal-header {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.calendar-grid .cal-day {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.calendar-grid .cal-day.empty { background: transparent; }
+.calendar-grid .cal-day.none { background: var(--surface2); color: var(--text-dim); }
+.calendar-grid .cal-day.low { background: #7f1d1d; color: #fca5a5; }
+.calendar-grid .cal-day.mid { background: #713f12; color: #fde047; }
+.calendar-grid .cal-day.high { background: #14532d; color: #86efac; }
+
+/* Список статистики по пунктам */
+.stats-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stats-item {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stats-item .si-text {
+  font-size: 14px;
+  flex: 1;
+  margin-right: 12px;
+}
+
+.stats-item .si-percent {
+  font-size: 18px;
+  font-weight: 700;
+  min-width: 50px;
+  text-align: right;
+}
+
+/* Экспорт/Импорт */
+.data-actions {
+  margin-top: 24px;
+  display: flex;
+  gap: 8px;
+}
+
+.data-actions button {
+  flex: 1;
+  background: var(--surface);
+  border: none;
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.data-actions button:active {
+  background: var(--surface2);
+}
+
+/* Анимация появления */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.task-item { animation: fadeIn 0.3s ease; }

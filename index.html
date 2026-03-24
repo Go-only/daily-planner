@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="stylesheet" href="style.css">
+  <title>Daily Planner</title>
+</head>
+<body>
+  <div id="app">
+
+    <!-- ===== Экран: Сегодня ===== -->
+    <div id="screen-today" class="screen active">
+      <div class="date-nav">
+        <button id="prev-day">&#8249;</button>
+        <div>
+          <div class="date-text" id="current-date"></div>
+          <span class="today-label" id="today-label"></span>
+        </div>
+        <button id="next-day">&#8250;</button>
+      </div>
+
+      <div class="tasks-list" id="tasks-list"></div>
+
+      <div class="day-progress" id="day-progress" style="display:none">
+        <div class="label">
+          <span>Прогресс</span>
+          <span id="day-percent">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="fill" id="day-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="add-task">
+        <input type="text" id="new-task-input" placeholder="Новый пункт плана..." maxlength="100">
+        <button id="add-task-btn">+</button>
+      </div>
+    </div>
+
+    <!-- ===== Экран: Статистика ===== -->
+    <div id="screen-stats" class="screen">
+      <div class="stats-tabs">
+        <button class="active" data-period="day">День</button>
+        <button data-period="week">Неделя</button>
+        <button data-period="month">Месяц</button>
+      </div>
+
+      <div id="stats-content"></div>
+
+      <div class="data-actions">
+        <button id="export-btn">Экспорт данных</button>
+        <button id="import-btn">Импорт данных</button>
+      </div>
+      <input type="file" id="import-file" accept=".json" style="display:none">
+    </div>
+
+    <!-- ===== Нижняя навигация ===== -->
+    <nav class="bottom-nav">
+      <button class="active" data-screen="today">
+        <span class="nav-icon">&#9776;</span>
+        Сегодня
+      </button>
+      <button data-screen="stats">
+        <span class="nav-icon">&#9733;</span>
+        Статистика
+      </button>
+    </nav>
+
+  </div>
+
+  <script src="db.js"></script>
+  <script src="stats.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

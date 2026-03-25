@@ -2,6 +2,7 @@
 
 let currentDate = new Date();
 let currentPeriod = 'day';
+let statsDate = new Date();
 
 // === Инициализация ===
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/daily-planner/sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 }
 
@@ -62,8 +63,8 @@ async function renderToday() {
   const plan = await getPlan();
   const dayLog = await getDayLog(dateStr);
 
-  // Фильтруем по дате добавления
-  const items = plan.filter(p => p.addedDate <= dateStr);
+  // Фильтруем по дате добавления и удаления
+  const items = plan.filter(p => p.addedDate <= dateStr && (!p.deletedDate || p.deletedDate > dateStr));
 
   const list = document.getElementById('tasks-list');
   const progress = document.getElementById('day-progress');
@@ -98,7 +99,8 @@ async function renderToday() {
         : `<input type="number" class="task-percent-input" data-id="${item.id}"
             value="${percent || ''}" placeholder="0" min="0" max="100" inputmode="numeric">
            <span class="task-percent-label">%</span>`
-      }`;
+      }
+      <button class="task-delete-btn" data-id="${item.id}" title="Удалить">&times;</button>`;
 
     list.appendChild(div);
   }
@@ -146,6 +148,15 @@ async function renderToday() {
       input.value = val || '';
       await setItemProgress(dateStr, id, val);
       if (val === 100) renderToday();
+    });
+  });
+
+  // Удаление задач
+  list.querySelectorAll('.task-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Удалить этот пункт? Он останется в статистике за прошлые дни.')) return;
+      await deletePlanItem(btn.dataset.id);
+      renderToday();
     });
   });
 
@@ -198,11 +209,22 @@ function initStats() {
   });
 }
 
+function navigateStats(direction) {
+  if (currentPeriod === 'day') {
+    statsDate.setDate(statsDate.getDate() + direction);
+  } else if (currentPeriod === 'week') {
+    statsDate.setDate(statsDate.getDate() + direction * 7);
+  } else {
+    statsDate.setMonth(statsDate.getMonth() + direction);
+  }
+  renderStats();
+}
+
 async function renderStats() {
   const plan = await getPlan();
   const logs = await getAllLogs();
   const content = document.getElementById('stats-content');
-  const dateStr = formatDate(currentDate);
+  const dateStr = formatDate(statsDate);
 
   if (plan.length === 0) {
     content.innerHTML = '<div class="empty-state"><p>Добавь пункты в план,<br>чтобы увидеть статистику</p></div>';
@@ -216,17 +238,32 @@ async function renderStats() {
   } else {
     renderMonthStats(content, plan, logs, dateStr);
   }
+
+  // Обработчики навигации по статистике
+  const prevBtn = content.querySelector('.stats-prev');
+  const nextBtn = content.querySelector('.stats-next');
+  if (prevBtn) prevBtn.addEventListener('click', () => navigateStats(-1));
+  if (nextBtn) nextBtn.addEventListener('click', () => navigateStats(1));
 }
 
 function renderDayStats(container, plan, logs, dateStr) {
   const dayLog = logs[dateStr] || {};
-  const items = plan.filter(p => p.addedDate <= dateStr);
+  const items = filterActiveItems(plan, dateStr);
   const avg = calcDayPercent(dayLog, plan, dateStr);
+
+  const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  const d = parseDate(dateStr);
+  const label = days[d.getDay()] + ', ' + d.getDate() + ' ' + months[d.getMonth()];
 
   let html = `
     <div class="stats-summary">
       <div class="big-number" style="color: ${percentColor(avg)}">${avg}%</div>
-      <div class="big-label">Выполнение за день</div>
+      <div class="stats-nav">
+        <button class="stats-prev">&#8249;</button>
+        <span class="stats-nav-label">${label}</span>
+        <button class="stats-next">&#8250;</button>
+      </div>
     </div>
     <div class="stats-items">`;
 
@@ -269,8 +306,8 @@ function renderWeekStats(container, plan, logs, dateStr) {
       </div>`;
   }
 
-  // Статистика по пунктам
-  const items = plan.filter(p => p.addedDate <= range.end);
+  // Статистика по пунктам — показываем задачи, которые были активны хотя бы в один день недели
+  const items = plan.filter(p => p.addedDate <= range.end && (!p.deletedDate || p.deletedDate > range.start));
   let itemsHtml = '';
   for (const item of items) {
     const p = calcItemStats(item.id, logs, range.start, range.end);
@@ -281,10 +318,21 @@ function renderWeekStats(container, plan, logs, dateStr) {
       </div>`;
   }
 
+  // Заголовок навигации
+  const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  const startD = parseDate(range.start);
+  const endD = parseDate(range.end);
+  const weekLabel = startD.getDate() + ' ' + months[startD.getMonth()] +
+    ' — ' + endD.getDate() + ' ' + months[endD.getMonth()];
+
   container.innerHTML = `
     <div class="stats-summary">
       <div class="big-number" style="color: ${percentColor(weekAvg)}">${weekAvg}%</div>
-      <div class="big-label">Среднее за неделю</div>
+      <div class="stats-nav">
+        <button class="stats-prev">&#8249;</button>
+        <span class="stats-nav-label">${weekLabel}</span>
+        <button class="stats-next">&#8250;</button>
+      </div>
     </div>
     <div class="bar-chart">${barsHtml}</div>
     <div class="stats-items">${itemsHtml}</div>`;
@@ -326,7 +374,7 @@ function renderMonthStats(container, plan, logs, dateStr) {
   }
 
   // Статистика по пунктам
-  const items = plan.filter(p => p.addedDate <= range.end);
+  const items = plan.filter(p => p.addedDate <= range.end && (!p.deletedDate || p.deletedDate > range.start));
   let itemsHtml = '';
   for (const item of items) {
     const p = calcItemStats(item.id, logs, range.start, range.end);
@@ -344,7 +392,11 @@ function renderMonthStats(container, plan, logs, dateStr) {
   container.innerHTML = `
     <div class="stats-summary">
       <div class="big-number" style="color: ${percentColor(monthAvg)}">${monthAvg}%</div>
-      <div class="big-label">${monthNames[d.getMonth()]} ${d.getFullYear()}</div>
+      <div class="stats-nav">
+        <button class="stats-prev">&#8249;</button>
+        <span class="stats-nav-label">${monthNames[d.getMonth()]} ${d.getFullYear()}</span>
+        <button class="stats-next">&#8250;</button>
+      </div>
     </div>
     <div class="calendar-grid">${calHtml}</div>
     <div class="stats-items">${itemsHtml}</div>`;

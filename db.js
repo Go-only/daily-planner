@@ -59,6 +59,24 @@ async function addPlanItem(text) {
   });
 }
 
+async function deletePlanItem(id) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('plan', 'readwrite');
+    const store = tx.objectStore('plan');
+    const req = store.get(id);
+    req.onsuccess = () => {
+      const item = req.result;
+      if (!item) return resolve();
+      item.deletedDate = getTodayStr();
+      const putReq = store.put(item);
+      putReq.onsuccess = () => resolve();
+      putReq.onerror = (e) => reject(e.target.error);
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
 // === Дневные записи ===
 
 async function getDayLog(date) {

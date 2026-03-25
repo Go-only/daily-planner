@@ -182,6 +182,31 @@ html, body {
   flex-shrink: 0;
 }
 
+/* Кнопка удаления задачи */
+.task-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0.4;
+}
+
+.task-delete-btn:hover,
+.task-delete-btn:active {
+  opacity: 1;
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.1);
+}
+
 /* === Прогресс-бар === */
 .day-progress {
   margin-top: 20px;
@@ -359,6 +384,42 @@ html, body {
   color: var(--text-dim);
   font-size: 14px;
   margin-top: 4px;
+}
+
+/* Навигация в статистике */
+.stats-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.stats-nav button {
+  background: var(--surface2);
+  border: none;
+  color: var(--text);
+  font-size: 18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.stats-nav button:active {
+  background: var(--accent);
+}
+
+.stats-nav-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-dim);
+  min-width: 140px;
+  text-align: center;
 }
 
 /* Столбчатый график */

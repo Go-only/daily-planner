@@ -1,7 +1,11 @@
 // === Расчёт статистики ===
 
+function filterActiveItems(planItems, date) {
+  return planItems.filter(p => p.addedDate <= date && (!p.deletedDate || p.deletedDate > date));
+}
+
 function calcDayPercent(dayLog, planItems, date) {
-  const items = planItems.filter(p => p.addedDate <= date);
+  const items = filterActiveItems(planItems, date);
   if (items.length === 0) return 0;
   let total = 0;
   for (const item of items) {

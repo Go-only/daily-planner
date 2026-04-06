@@ -1,7 +1,7 @@
 // === IndexedDB — хранение плана и ежедневных записей ===
 
 const DB_NAME = 'daily-planner';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance = null;
 
@@ -18,6 +18,9 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains('logs')) {
         db.createObjectStore('logs', { keyPath: 'date' });
+      }
+      if (!db.objectStoreNames.contains('settings')) {
+        db.createObjectStore('settings', { keyPath: 'id' });
       }
     };
 
@@ -43,11 +46,12 @@ async function getPlan() {
   });
 }
 
-async function addPlanItem(text) {
+async function addPlanItem(text, schedule) {
   const db = await openDB();
   const item = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     text,
+    schedule,
     addedDate: getTodayStr(),
   };
   return new Promise((resolve, reject) => {
@@ -120,12 +124,71 @@ async function getAllLogs() {
   });
 }
 
+// === Настройки выходных дней ===
+
+const DEFAULT_DAYS_OFF = [0, 6]; // Вс, Сб
+
+async function getDaysOffHistory() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('settings', 'readonly');
+    const store = tx.objectStore('settings');
+    const req = store.get('daysoff');
+    req.onsuccess = () => {
+      const record = req.result;
+      resolve(record ? record.history : []);
+    };
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function getDaysOffForDate(dateStr) {
+  const history = await getDaysOffHistory();
+  if (history.length === 0) return DEFAULT_DAYS_OFF;
+  // Ищем последнюю запись с effectiveFrom <= dateStr
+  let result = DEFAULT_DAYS_OFF;
+  for (const entry of history) {
+    if (entry.effectiveFrom <= dateStr) {
+      result = entry.days;
+    }
+  }
+  return result;
+}
+
+async function getCurrentDaysOff() {
+  const history = await getDaysOffHistory();
+  if (history.length === 0) return DEFAULT_DAYS_OFF;
+  return history[history.length - 1].days;
+}
+
+async function setDaysOff(days) {
+  const db = await openDB();
+  const history = await getDaysOffHistory();
+  const today = getTodayStr();
+
+  // Если последняя запись на сегодня — обновляем её
+  if (history.length > 0 && history[history.length - 1].effectiveFrom === today) {
+    history[history.length - 1].days = days;
+  } else {
+    history.push({ effectiveFrom: today, days });
+  }
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('settings', 'readwrite');
+    const store = tx.objectStore('settings');
+    const req = store.put({ id: 'daysoff', history });
+    req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
 // === Экспорт / Импорт ===
 
 async function exportData() {
   const plan = await getPlan();
   const logs = await getAllLogs();
-  return JSON.stringify({ plan, logs }, null, 2);
+  const daysOffHistory = await getDaysOffHistory();
+  return JSON.stringify({ plan, logs, daysOffHistory }, null, 2);
 }
 
 async function importData(jsonStr) {
@@ -146,6 +209,13 @@ async function importData(jsonStr) {
   storeLogs.clear();
   for (const [date, items] of Object.entries(data.logs)) {
     storeLogs.add({ date, items });
+  }
+
+  // Импорт настроек выходных
+  if (data.daysOffHistory) {
+    const txSettings = db.transaction('settings', 'readwrite');
+    const storeSettings = txSettings.objectStore('settings');
+    storeSettings.put({ id: 'daysoff', history: data.daysOffHistory });
   }
 }
 

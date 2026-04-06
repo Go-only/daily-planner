@@ -1,11 +1,21 @@
 // === Расчёт статистики ===
 
-function filterActiveItems(planItems, date) {
-  return planItems.filter(p => p.addedDate <= date && (!p.deletedDate || p.deletedDate > date));
+function filterActiveItems(planItems, date, daysOff) {
+  const filtered = planItems.filter(p => p.addedDate <= date && (!p.deletedDate || p.deletedDate > date));
+
+  if (!daysOff) return filtered;
+
+  const d = parseDate(date);
+  const dayoff = daysOff.includes(d.getDay());
+
+  return filtered.filter(p => {
+    if (!p.schedule) return true; // старые задачи без schedule
+    return dayoff ? p.schedule === 'dayoff' : p.schedule === 'workday';
+  });
 }
 
-function calcDayPercent(dayLog, planItems, date) {
-  const items = filterActiveItems(planItems, date);
+function calcDayPercent(dayLog, planItems, date, daysOff) {
+  const items = filterActiveItems(planItems, date, daysOff);
   if (items.length === 0) return 0;
   let total = 0;
   for (const item of items) {

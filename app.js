@@ -8,7 +8,7 @@ let statsDate = new Date();
 document.addEventListener('DOMContentLoaded', () => {
   registerSW();
   initNavigation();
-  initAddTask();
+  initPlan();
   initStats();
   initDataActions();
   renderToday();
@@ -32,6 +32,7 @@ function initNavigation() {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById('screen-' + screen).classList.add('active');
       if (screen === 'stats') renderStats();
+      if (screen === 'plan') renderPlan();
     });
   });
 
@@ -44,6 +45,13 @@ function initNavigation() {
     currentDate.setDate(currentDate.getDate() + 1);
     renderToday();
   });
+}
+
+// === Вспомогательная функция: определение типа дня ===
+
+function isDayOff(dateStr, daysOff) {
+  const d = parseDate(dateStr);
+  return daysOff.includes(d.getDay());
 }
 
 // === Экран «Сегодня» ===
@@ -62,9 +70,17 @@ async function renderToday() {
   // Получаем данные
   const plan = await getPlan();
   const dayLog = await getDayLog(dateStr);
+  const daysOff = await getDaysOffForDate(dateStr);
 
   // Фильтруем по дате добавления и удаления
-  const items = plan.filter(p => p.addedDate <= dateStr && (!p.deletedDate || p.deletedDate > dateStr));
+  let items = plan.filter(p => p.addedDate <= dateStr && (!p.deletedDate || p.deletedDate > dateStr));
+
+  // Фильтруем по типу дня
+  const dayoff = isDayOff(dateStr, daysOff);
+  items = items.filter(p => {
+    if (!p.schedule) return true; // старые задачи без schedule — показываем
+    return dayoff ? p.schedule === 'dayoff' : p.schedule === 'workday';
+  });
 
   const list = document.getElementById('tasks-list');
   const progress = document.getElementById('day-progress');
@@ -73,7 +89,7 @@ async function renderToday() {
     list.innerHTML = `
       <div class="empty-state">
         <div class="icon">&#128221;</div>
-        <p>Пока пусто.<br>Добавь первый пункт плана!</p>
+        <p>Пока пусто.<br>Добавь задачи на экране «План»!</p>
       </div>`;
     progress.style.display = 'none';
     return;
@@ -99,8 +115,7 @@ async function renderToday() {
         : `<input type="number" class="task-percent-input" data-id="${item.id}"
             value="${percent || ''}" placeholder="0" min="0" max="100" inputmode="numeric">
            <span class="task-percent-label">%</span>`
-      }
-      <button class="task-delete-btn" data-id="${item.id}" title="Удалить">&times;</button>`;
+      }`;
 
     list.appendChild(div);
   }
@@ -151,15 +166,6 @@ async function renderToday() {
     });
   });
 
-  // Удаление задач
-  list.querySelectorAll('.task-delete-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!confirm('Удалить этот пункт? Он останется в статистике за прошлые дни.')) return;
-      await deletePlanItem(btn.dataset.id);
-      renderToday();
-    });
-  });
-
   // Прогресс-бар
   progress.style.display = 'block';
   updateDayProgress(items, dateStr);
@@ -176,24 +182,117 @@ async function updateDayProgress(items, dateStr) {
   document.getElementById('day-fill').style.width = avg + '%';
 }
 
-// === Добавление задачи ===
+// === Экран «План» ===
 
-function initAddTask() {
-  const input = document.getElementById('new-task-input');
-  const btn = document.getElementById('add-task-btn');
+function initPlan() {
+  // Добавление задачи — рабочие дни
+  const workdayInput = document.getElementById('add-workday-input');
+  const workdayBtn = document.getElementById('add-workday-btn');
 
-  async function add() {
-    const text = input.value.trim();
+  async function addWorkday() {
+    const text = workdayInput.value.trim();
     if (!text) return;
-    await addPlanItem(text);
-    input.value = '';
+    await addPlanItem(text, 'workday');
+    workdayInput.value = '';
+    renderPlan();
     renderToday();
   }
 
-  btn.addEventListener('click', add);
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') add();
+  workdayBtn.addEventListener('click', addWorkday);
+  workdayInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addWorkday(); });
+
+  // Добавление задачи — выходные
+  const dayoffInput = document.getElementById('add-dayoff-input');
+  const dayoffBtn = document.getElementById('add-dayoff-btn');
+
+  async function addDayoff() {
+    const text = dayoffInput.value.trim();
+    if (!text) return;
+    await addPlanItem(text, 'dayoff');
+    dayoffInput.value = '';
+    renderPlan();
+    renderToday();
+  }
+
+  dayoffBtn.addEventListener('click', addDayoff);
+  dayoffInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addDayoff(); });
+}
+
+async function renderPlan() {
+  const plan = await getPlan();
+  const today = getTodayStr();
+
+  // Активные задачи
+  const active = plan.filter(p => !p.deletedDate || p.deletedDate > today);
+
+  const workdayItems = active.filter(p => p.schedule === 'workday');
+  const dayoffItems = active.filter(p => p.schedule === 'dayoff');
+
+  // Рендер списка рабочих дней
+  renderPlanList('plan-workday-list', workdayItems);
+  // Рендер списка выходных
+  renderPlanList('plan-dayoff-list', dayoffItems);
+
+  // Рендер настроек выходных дней
+  await renderDaysOffToggles();
+}
+
+function renderPlanList(containerId, items) {
+  const container = document.getElementById(containerId);
+
+  if (items.length === 0) {
+    container.innerHTML = '<div class="plan-empty">Пока нет задач</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  for (const item of items) {
+    const div = document.createElement('div');
+    div.className = 'plan-item';
+    div.innerHTML = `
+      <span class="plan-item-text">${escapeHtml(item.text)}</span>
+      <button class="plan-item-delete" data-id="${item.id}" title="Удалить">&times;</button>`;
+    container.appendChild(div);
+  }
+
+  container.querySelectorAll('.plan-item-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Удалить эту задачу? Она останется в статистике за прошлые дни.')) return;
+      await deletePlanItem(btn.dataset.id);
+      renderPlan();
+      renderToday();
+    });
   });
+}
+
+async function renderDaysOffToggles() {
+  const container = document.getElementById('daysoff-toggles');
+  const currentDaysOff = await getCurrentDaysOff();
+  const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  // dayNames index: 0=Пн(1), 1=Вт(2), 2=Ср(3), 3=Чт(4), 4=Пт(5), 5=Сб(6), 6=Вс(0)
+  const dayNumbers = [1, 2, 3, 4, 5, 6, 0]; // JS getDay() values
+
+  container.innerHTML = '';
+  for (let i = 0; i < 7; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'daysoff-toggle' + (currentDaysOff.includes(dayNumbers[i]) ? ' active' : '');
+    btn.textContent = dayNames[i];
+    btn.dataset.day = dayNumbers[i];
+    btn.addEventListener('click', async () => {
+      const dayNum = parseInt(btn.dataset.day);
+      const daysOff = await getCurrentDaysOff();
+      const idx = daysOff.indexOf(dayNum);
+      if (idx >= 0) {
+        daysOff.splice(idx, 1);
+      } else {
+        daysOff.push(dayNum);
+      }
+      await setDaysOff(daysOff);
+      btn.classList.toggle('active');
+      renderToday();
+    });
+    container.appendChild(btn);
+  }
 }
 
 // === Статистика ===
@@ -232,11 +331,11 @@ async function renderStats() {
   }
 
   if (currentPeriod === 'day') {
-    renderDayStats(content, plan, logs, dateStr);
+    await renderDayStats(content, plan, logs, dateStr);
   } else if (currentPeriod === 'week') {
-    renderWeekStats(content, plan, logs, dateStr);
+    await renderWeekStats(content, plan, logs, dateStr);
   } else {
-    renderMonthStats(content, plan, logs, dateStr);
+    await renderMonthStats(content, plan, logs, dateStr);
   }
 
   // Обработчики навигации по статистике
@@ -246,10 +345,11 @@ async function renderStats() {
   if (nextBtn) nextBtn.addEventListener('click', () => navigateStats(1));
 }
 
-function renderDayStats(container, plan, logs, dateStr) {
+async function renderDayStats(container, plan, logs, dateStr) {
   const dayLog = logs[dateStr] || {};
-  const items = filterActiveItems(plan, dateStr);
-  const avg = calcDayPercent(dayLog, plan, dateStr);
+  const daysOff = await getDaysOffForDate(dateStr);
+  const items = filterActiveItems(plan, dateStr, daysOff);
+  const avg = calcDayPercent(dayLog, plan, dateStr, daysOff);
 
   const days = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
   const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -280,7 +380,7 @@ function renderDayStats(container, plan, logs, dateStr) {
   container.innerHTML = html;
 }
 
-function renderWeekStats(container, plan, logs, dateStr) {
+async function renderWeekStats(container, plan, logs, dateStr) {
   const range = getWeekRange(dateStr);
   const days = getDaysInRange(range.start, range.end);
 
@@ -288,7 +388,8 @@ function renderWeekStats(container, plan, logs, dateStr) {
   let weekTotal = 0;
   for (const day of days) {
     const dayLog = logs[day] || {};
-    weekTotal += calcDayPercent(dayLog, plan, day);
+    const daysOff = await getDaysOffForDate(day);
+    weekTotal += calcDayPercent(dayLog, plan, day, daysOff);
   }
   const weekAvg = Math.round(weekTotal / days.length);
 
@@ -297,7 +398,8 @@ function renderWeekStats(container, plan, logs, dateStr) {
   let barsHtml = '';
   for (let i = 0; i < days.length; i++) {
     const dayLog = logs[days[i]] || {};
-    const p = calcDayPercent(dayLog, plan, days[i]);
+    const daysOff = await getDaysOffForDate(days[i]);
+    const p = calcDayPercent(dayLog, plan, days[i], daysOff);
     const h = Math.max(2, p);
     barsHtml += `
       <div class="bar-col">
@@ -306,11 +408,11 @@ function renderWeekStats(container, plan, logs, dateStr) {
       </div>`;
   }
 
-  // Статистика по пунктам — показываем задачи, которые были активны хотя бы в один день недели
+  // Статистика по пунктам
   const items = plan.filter(p => p.addedDate <= range.end && (!p.deletedDate || p.deletedDate > range.start));
   let itemsHtml = '';
   for (const item of items) {
-    const p = calcItemStats(item.id, logs, range.start, range.end);
+    const p = await calcItemStatsWithSchedule(item, logs, range.start, range.end);
     itemsHtml += `
       <div class="stats-item">
         <span class="si-text">${escapeHtml(item.text)}</span>
@@ -338,7 +440,7 @@ function renderWeekStats(container, plan, logs, dateStr) {
     <div class="stats-items">${itemsHtml}</div>`;
 }
 
-function renderMonthStats(container, plan, logs, dateStr) {
+async function renderMonthStats(container, plan, logs, dateStr) {
   const range = getMonthRange(dateStr);
   const days = getDaysInRange(range.start, range.end);
   const firstDay = parseDate(range.start);
@@ -349,7 +451,8 @@ function renderMonthStats(container, plan, logs, dateStr) {
   let monthTotal = 0;
   for (const day of days) {
     const dayLog = logs[day] || {};
-    monthTotal += calcDayPercent(dayLog, plan, day);
+    const daysOff = await getDaysOffForDate(day);
+    monthTotal += calcDayPercent(dayLog, plan, day, daysOff);
   }
   const monthAvg = Math.round(monthTotal / days.length);
 
@@ -364,7 +467,8 @@ function renderMonthStats(container, plan, logs, dateStr) {
 
   for (const day of days) {
     const dayLog = logs[day] || {};
-    const p = calcDayPercent(dayLog, plan, day);
+    const daysOff = await getDaysOffForDate(day);
+    const p = calcDayPercent(dayLog, plan, day, daysOff);
     const dayNum = parseInt(day.split('-')[2]);
     let cls = 'none';
     if (p >= 75) cls = 'high';
@@ -377,7 +481,7 @@ function renderMonthStats(container, plan, logs, dateStr) {
   const items = plan.filter(p => p.addedDate <= range.end && (!p.deletedDate || p.deletedDate > range.start));
   let itemsHtml = '';
   for (const item of items) {
-    const p = calcItemStats(item.id, logs, range.start, range.end);
+    const p = await calcItemStatsWithSchedule(item, logs, range.start, range.end);
     itemsHtml += `
       <div class="stats-item">
         <span class="si-text">${escapeHtml(item.text)}</span>
@@ -400,6 +504,34 @@ function renderMonthStats(container, plan, logs, dateStr) {
     </div>
     <div class="calendar-grid">${calHtml}</div>
     <div class="stats-items">${itemsHtml}</div>`;
+}
+
+// Статистика по задаче с учётом schedule (показывать только в дни, когда задача активна)
+async function calcItemStatsWithSchedule(item, logs, startDate, endDate) {
+  let sum = 0;
+  let days = 0;
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (current <= end) {
+    const dateStr = formatDate(current);
+    const daysOff = await getDaysOffForDate(dateStr);
+    const dayoff = isDayOff(dateStr, daysOff);
+
+    // Считаем только дни, когда задача активна
+    let active = true;
+    if (item.schedule === 'workday' && dayoff) active = false;
+    if (item.schedule === 'dayoff' && !dayoff) active = false;
+
+    if (active && item.addedDate <= dateStr && (!item.deletedDate || item.deletedDate > dateStr)) {
+      const dayLog = logs[dateStr] || {};
+      sum += (dayLog[item.id] || 0);
+      days++;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return days > 0 ? Math.round(sum / days) : 0;
 }
 
 // === Экспорт / Импорт ===

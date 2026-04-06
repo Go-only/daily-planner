@@ -37,10 +37,31 @@
           <div class="fill" id="day-fill" style="width:0%"></div>
         </div>
       </div>
+    </div>
 
-      <div class="add-task">
-        <input type="text" id="new-task-input" placeholder="Новый пункт плана..." maxlength="100">
-        <button id="add-task-btn">+</button>
+    <!-- ===== Экран: План ===== -->
+    <div id="screen-plan" class="screen">
+      <div class="plan-section">
+        <h2 class="plan-section-title">Рабочие дни</h2>
+        <div class="plan-items" id="plan-workday-list"></div>
+        <div class="add-task">
+          <input type="text" id="add-workday-input" placeholder="Новая задача..." maxlength="100">
+          <button id="add-workday-btn">+</button>
+        </div>
+      </div>
+
+      <div class="plan-section">
+        <h2 class="plan-section-title">Выходные дни</h2>
+        <div class="plan-items" id="plan-dayoff-list"></div>
+        <div class="add-task">
+          <input type="text" id="add-dayoff-input" placeholder="Новая задача..." maxlength="100">
+          <button id="add-dayoff-btn">+</button>
+        </div>
+      </div>
+
+      <div class="plan-section">
+        <h2 class="plan-section-title">Выходные дни недели</h2>
+        <div class="daysoff-toggles" id="daysoff-toggles"></div>
       </div>
     </div>
 
@@ -66,6 +87,10 @@
       <button class="active" data-screen="today">
         <span class="nav-icon">&#9776;</span>
         Сегодня
+      </button>
+      <button data-screen="plan">
+        <span class="nav-icon">&#9998;</span>
+        План
       </button>
       <button data-screen="stats">
         <span class="nav-icon">&#9733;</span>
